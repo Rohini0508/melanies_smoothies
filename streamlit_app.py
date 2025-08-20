@@ -1,5 +1,14 @@
 import streamlit as st
-from snowflake.snowpark.functions import col
+import subprocess, sys
+
+# ✅ Safety net: force-install Snowflake packages if missing
+try:
+    from snowflake.snowpark.functions import col
+except ModuleNotFoundError:
+    subprocess.run([sys.executable, "-m", "pip", "install",
+                    "snowflake-snowpark-python==1.19.0",
+                    "snowflake-connector-python==3.12.0"])
+    from snowflake.snowpark.functions import col
 
 st.title("Customize Your Smoothie! 🥤")
 st.write("Choose the fruits you want in your custom Smoothie!")
