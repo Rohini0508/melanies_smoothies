@@ -47,11 +47,9 @@ ingredients_list = st.multiselect(
 # If ingredients selected -> show nutrition + insert order
 # ------------------------------------------------
 if ingredients_list:
-    ingredients_string = ""
+    ingredients_string = " ".join(ingredients_list)
 
     for each_fruit in ingredients_list:
-        ingredients_string += each_fruit + " "
-
         # Find the SEARCH_ON value for API
         search_on = pd_df.loc[pd_df["FRUIT_NAME"] == each_fruit, "SEARCH_ON"].iloc[0]
 
@@ -87,11 +85,11 @@ if ingredients_list:
             st.warning(f"No data found for {each_fruit} (searched as '{search_on}')")
 
     # ------------------------------------------------
-    # Insert order into Snowflake
+    # Insert order into Snowflake (use sequence)
     # ------------------------------------------------
     my_insert_stmt = f"""
-        insert into smoothies.public.orders(ingredients, name_on_order)
-        values ('{ingredients_string.strip()}', '{name_on_order}')
+        insert into smoothies.public.orders(order_uid, ingredients, name_on_order)
+        values (smoothies.public.order_seq.nextval, '{ingredients_string}', '{name_on_order}')
     """
 
     if st.button("Submit Order"):
