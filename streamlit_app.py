@@ -6,22 +6,27 @@ from snowflake.snowpark.functions import col
 import requests
 import pandas as pd
 
+# ------------------------------------------------
 # Title
+# ------------------------------------------------
 st.title(":cup_with_straw: Customize Your Smoothie! :cup_with_straw:")
 st.write("Choose the fruits you want in your custom Smoothie")
 
+# ------------------------------------------------
 # Input: name on order
+# ------------------------------------------------
 name_on_order = st.text_input("Name on smoothie", "Pooja")
 st.write("The name on your smoothie will be:", name_on_order)
 
-# Checkbox for order filled
-order_filled = st.checkbox("Mark order as FILLED?", value=False)
-
+# ------------------------------------------------
 # Connect to Snowflake
+# ------------------------------------------------
 cnx = st.connection("snowflake")
 session = cnx.session()
 
-# Get both FRUIT_NAME and SEARCH_ON
+# ------------------------------------------------
+# Get Fruit Data (FRUIT_NAME + SEARCH_ON)
+# ------------------------------------------------
 sp_df = session.table("smoothies.public.fruit_options").select(
     col("FRUIT_NAME"), col("SEARCH_ON")
 )
@@ -29,13 +34,18 @@ sp_df = session.table("smoothies.public.fruit_options").select(
 # Convert Snowpark DF -> Pandas DF
 pd_df = sp_df.to_pandas()
 
+# ------------------------------------------------
 # Multiselect shows fruit names
+# ------------------------------------------------
 ingredients_list = st.multiselect(
     "Choose up to 5 ingredients",
     options=pd_df["FRUIT_NAME"].tolist(),
     max_selections=5
 )
 
+# ------------------------------------------------
+# If ingredients selected -> show nutrition + insert order
+# ------------------------------------------------
 if ingredients_list:
     ingredients_string = ""
 
@@ -47,7 +57,7 @@ if ingredients_list:
 
         st.subheader(each_fruit + " Nutrition Information")
 
-        # Call API
+        # Call Fruityvice API
         fruityvice_response = requests.get("https://fruityvice.com/api/fruit/" + search_on)
 
         if fruityvice_response.ok:
@@ -60,7 +70,7 @@ if ingredients_list:
                 "value": list(nutrition.values())
             })
 
-            # Add other metadata columns (family, genus, id, name, order)
+            # Add other metadata columns
             df["family"] = data.get("family", "")
             df["genus"] = data.get("genus", "")
             df["id"] = data.get("id", "")
@@ -72,15 +82,18 @@ if ingredients_list:
 
             # Show dataframe
             st.dataframe(df, use_container_width=True)
+
         else:
             st.warning(f"No data found for {each_fruit} (searched as '{search_on}')")
 
+    # ------------------------------------------------
     # Insert order into Snowflake
+    # ------------------------------------------------
     my_insert_stmt = f"""
-        insert into smoothies.public.orders(ingredients, name_on_order, order_filled)
-        values ('{ingredients_string.strip()}', '{name_on_order}', {str(order_filled).upper()})
+        insert into smoothies.public.orders(ingredients, name_on_order)
+        values ('{ingredients_string.strip()}', '{name_on_order}')
     """
 
     if st.button("Submit Order"):
         session.sql(my_insert_stmt).collect()
-        st.success("Your Smoothie is ordered, " + name_on_order + "!", icon="✅")
+        st.success(f"✅ Your Smoothie is ordered, {name_on_order}!")
