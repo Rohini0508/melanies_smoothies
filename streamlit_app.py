@@ -14,8 +14,8 @@ cnx = st.connection("snowflake")
 session = cnx.session()
 
 # Get fruit options from Snowflake
-my_dataframe = session.table("smoothies.public.fruit_options").select(col("FRUIT_NAME"))
-fruit_options = [row["FRUIT_NAME"] for row in my_dataframe.collect()]
+fruit_df = session.table("SMOOTHIES.PUBLIC.FRUIT_OPTIONS").select(col("FRUIT_NAME"))
+fruit_options = [row["FRUIT_NAME"] for row in fruit_df.collect()]
 
 # Multiselect input
 ingredients_list = st.multiselect(
@@ -26,16 +26,15 @@ ingredients_list = st.multiselect(
 
 # ✅ Only run when button clicked
 if st.button("Submit Order"):
-    if ingredients_list and name_on_order:  
-        # Build ingredients string (comma-separated for clarity)
+    if ingredients_list and name_on_order:
+        # Build ingredients string (comma-separated)
         ingredients_string = ", ".join(ingredients_list)
 
-        # Insert order into Snowflake
-        my_insert_stmt = f"""
-            insert into SMOOTHIES.PUBLIC.ORDERS (INGREDIENTS, NAME_ON_ORDER)
-            values ('{ingredients_string}', '{name_on_order}')
-        """
-        session.sql(my_insert_stmt).collect()
+        # Insert order into Snowflake using safe SQL binding
+        session.sql(
+            "INSERT INTO SMOOTHIES.PUBLIC.ORDERS (INGREDIENTS, NAME_ON_ORDER) VALUES (?, ?)",
+            params=[ingredients_string, name_on_order]
+        ).collect()
 
         st.success(f"Your Smoothie for **{name_on_order}** is ordered! ✅")
 
